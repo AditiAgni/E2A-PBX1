@@ -1,4 +1,4 @@
-#set wd- session-choose directory-dekstop-wd
+#setwd("C:/Users/agnih/OneDrive/Desktop/paper/Paper R scripts/79533 files")
 
 #cel files download and unpacking
 gse79533<-list.celfiles("GSE79533/", pattern="CEL")
@@ -6,42 +6,30 @@ gse79533<-list.celfiles("GSE79533/", pattern="CEL")
 
 #reading raw data
 RD_gse79533<-ReadAffy(verbose = TRUE, filenames = gse79533)
-
-#visualization of raw data before normalization
-#hist(RD_gse79533)
-#RAWEXP<-exprs(RD_gse79533)
-#ma.plot(rowMeans(log2(RAWEXP)), log2(RAWEXP[,1])-log2(RAWEXP[,2]), cex=1)
 boxplot(RD_gse79533)
 
 
 #phenodata import and read
-file.exists("GSE79533_pdata.txt")
-PD_gse79533<-read.table("GSE79533_pdata.txt", header = TRUE, sep = "\t")
-#alternate- read.delim("GSE79533_pdata.txt", header = TRUE, fill = TRUE)
-#options(max.print = 380)
-#alternate through rio- PD_gse79533<-import("GSE79533_pdata.txt")
-#head(Phdata)
-#for excel file- PD_gse79533<-import("GSE79533_series_matrix.xlsx")
-#head(rio_xlsx)
-
+file.exists("GSE79533_updata.xlsx")
+UPD_gse79533= import("GSE79533_updata.xlsx") #phenodata having only common samples
 #viewing phenodata = View(Phdata), for dimensions= dim(file name)
 
 
-#RMA normalization
-ND_gse79533 = rma(RD_gse79533)
+#filtering samples from expression data; retaining only common samples
+keepSamples <- UPD_gse79533$Sample_IDs
+rownames(RD_gse79533@phenoData@data) <- sub("_.*", "", rownames(RD_gse79533@phenoData@data))
+rownames(RD_gse79533@protocolData@data) <- sub("_.*", "", rownames(RD_gse79533@protocolData@data))
+FtRD_gse79533 <- RD_gse79533[, colnames(RD_gse79533) %in% keepSamples]
 
-#viewing normalized data= View(ND_gse79533) 
-boxplot(ND_gse79533@assayData$exprs)
+
+#RMA normalization
+ND_gse79533 = rma(FtRD_gse79533)
+boxplot(ND_gse79533@assayData$exprs) #viewing normalized data
 
 
 #getting expression value or probe IDs for genes
 ED_gse79533<-as.data.frame(exprs(ND_gse79533))
-
-
-#merging ED and Phdata for allotment of probe IDs to gene IDs
-colnames(ED_gse79533) = PD_gse79533$Sample_IDs
-#to view- colnames(ED_gse79533)
-#dim(ED_gse79533)- 22283  83
+dim(ED_gse79533) #54675 219
 
 
 #gene annotation through biomart hgnc
@@ -52,22 +40,9 @@ PIDs_gse79533= getBM(attributes = c("affy_hg_u133_plus_2", "hgnc_symbol"),
                      filters = "affy_hg_u133_plus_2",
                      values = PIDs.gse79533,
                      mart = Martfunction)
-# alternate- if(interactive()){
-#  mart <- useEnsembl(biomart = "ensembl",
-#                    dataset = "hsapiens_gene_ensembl")
-# 
-#  getBM(attributes = c("affy_hg_u133_plus_2", "hgnc_symbol", "chromosome_name", "band"),
-#        filters    = "affy_hg_u133a",
-#        values     = "PIDs.gse79533",
-#        mart       = mart)
-#}
-#dim(PIDs_gse79533) [1] 48315     2
-#to view lists- listMarts(),  listDatasets(mart= ensembl), listAttributes(mart = ensembl)
+PIDs_gse79533.df=PIDs_gse79533[!(PIDs_gse79533$hgnc_symbol==""),] #removing unassigned probe IDs
+dim(PIDs_gse79533.df)  #44539     2
 
-
-#removing unassigned probe IDs
-PIDs_gse79533.df=PIDs_gse79533[!(PIDs_gse79533$hgnc_symbol==""),]
-#dim(PIDs_gse79533.df) [1] 22279     2
 
 #bringing rownames to colnames
 ED_gse79533.df=rownames_to_column (ED_gse79533, "PIDs")
@@ -76,31 +51,28 @@ colnames(PIDs_gse79533.df)[1]<-"PIDs"
 
 #merging gene symbols with ED
 GS_gse79533= merge(PIDs_gse79533.df, ED_gse79533.df, by= "PIDs")
-#dim(GS_gse79533)- 44137 231
+dim(GS_gse79533) #44539   221
 
 
 #limma avereps- to avg out duplicate symbols
 AR_gse79533=as.data.frame((limma::avereps(GS_gse79533, GS_gse79533$hgnc_symbol)))
-#dim(AR_gse79533)- 22269 231
+dim(AR_gse79533) #22442   221
+AR_gse79533=column_to_rownames(AR_gse79533, "hgnc_symbol") #final dataset - having unique gene symbols as rownames
+dim(AR_gse79533) #22442   220
 
-
-#final dataset - having unique gene symbols as rownames
-AR_gse79533=column_to_rownames(AR_gse79533, "hgnc_symbol")
-#dim(AR_gse79533)- 22269 230
 
 #removing PIDs column
 FD_gse79533=AR_gse79533[-c(1)]
-#dim(FD_gse79533)- 22269 229
-
-#converting data frame to matrix for numeric values
-FD_gse79533.matrix=as.matrix(FD_gse79533)
+dim(FD_gse79533) #22442   219
+FD_gse79533.matrix=as.matrix(FD_gse79533) #converting data frame to matrix for numeric values
 class(FD_gse79533.matrix)= "numeric"
-#dim(FD_gse79533.matrix) 22269  229
+dim(FD_gse79533.matrix) #22442   219
 
-#write.csv(FD_gse79533, file = "FD_gse79533.csv") - to export files in xcel.
-##to create common gene symbol column for merging data
+
+#to create common gene symbol column for merging data
 MD_gse79533 <- rownames_to_column (FD_gse79533, "gene.symbol")
-#dim(MD_gse79533)- 22269 230
+dim(MD_gse79533) #22442   220
+
 
 
 #DGE
@@ -156,13 +128,7 @@ heatmap3(data.matrix.genes2, labCol =paste( sc2$Sample, sc2$condition, sep = " -
 heatmap3(FD_gse79533.matrix, labCol = paste(sc2$Sample, sc2$condition, sep = " - "))
 heatmap3(DGE_gse79533, Rowv = DGE2_gse79533$symbol)
 
-#saving metafiles
-saveRDS(MD_gse12995, file="MD_gse12995")
-saveRDS(MD_gse13425, file="MD_gse13425")
-saveRDS(MD_gse79533, file="1MD_gse79533")
-saveRDS(MD_gse26281, file="MD_gse26281")
-saveRDS(MD_gse26366, file="MD_gse26366")
 
-#saving dge file
-write.csv(DGE_gse79533, file = "1DGE_79533.csv")
-write.csv(DGE2_gse79533, file = "1DGE2_79533.csv")
+
+#saving final final for meta-analysis
+saveRDS(MD_gse79533, file="MD_gse79533")
