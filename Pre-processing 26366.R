@@ -1,18 +1,17 @@
-#set wd- session-choose directory-"C:/Users/agnih/OneDrive/Desktop/dissertation/wd/GSE26366"
+setwd(" ")  #or session-choose directory
 
-#cel files download and unpacking
-gse26366<-list.celfiles("GSE26366/", pattern="CEL")
+#cel files listing
+gse26366<-list.celfiles(" ", pattern="CEL")
 
 
 #reading raw data
-RD_gse26366<-ReadAffy(verbose = TRUE, filenames = gse26366)
-boxplot(RD_gse26366) #visualization of raw data before normalization
+RD_gse26366<-ReadAffy(verbose = TRUE, filenames = gse26366) #contain all samples (n=229)
+boxplot(RD_gse26366)
 
 
 #phenodata import and read
 file.exists("GSE26366_updata.xlsx")
-UPD_gse26366= import("GSE26366_updata.xlsx") #phenodata having only common samples
-#viewing phenodata = View(Phdata), for dimensions= dim(file name)
+UPD_gse26366= import("GSE26366_updata.xlsx") #phenodata having only common samples (n=109)
 
 
 #filtering samples from expression data; retaining only common samples
@@ -24,7 +23,7 @@ FtRD_gse26366 <- RD_gse26366[, colnames(RD_gse26366) %in% keepSamples]
 
 #RMA normalization
 ND_gse26366 = rma(FtRD_gse26366)
-boxplot(ND_gse26366@assayData$exprs) #viewing normalized data= View(ND_gse26366)
+boxplot(ND_gse26366@assayData$exprs) 
 
 
 #getting expression value or probe IDs for genes
@@ -45,7 +44,7 @@ PIDs_gse26366.df=PIDs_gse26366[!(PIDs_gse26366$hgnc_symbol==""),] #removing unas
 dim(PIDs_gse26366.df) #22454     2
 
 
-#bringing rownames to colnames
+#bringing row names to column
 ED_gse26366.df=rownames_to_column (ED_gse26366, "PIDs")
 colnames(PIDs_gse26366.df)[1]<-"PIDs"
 
@@ -60,21 +59,21 @@ AR_gse26366=as.data.frame((limma::avereps(GS_gse26366, GS_gse26366$hgnc_symbol))
 dim(AR_gse26366) #14215 111
 
 
-#final dataset - having umique gene symbols as rownames
+#final dataset - having unique gene symbols as row names
 AR_gse26366=column_to_rownames(AR_gse26366, "hgnc_symbol")
-dim(AR_gse26366) #14118 110
+dim(AR_gse26366) #14215 110
 FD_gse26366=AR_gse26366[-c(1)] #removing PIDs column
-dim(FD_gse26366) #14118 109
+dim(FD_gse26366) #14215 109
 FD_gse26366.matrix=as.matrix(FD_gse26366) #creating matrix file of final dataset
 class(FD_gse26366.matrix)= "numeric"
 
 
-##to create common gene symbol column for merging data
+##Creating a common gene symbol column for merging data
 MD_gse26366 <- rownames_to_column (FD_gse26366, "gene.symbol")
-dim(MD_gse26366) #14118 110
+dim(MD_gse26366) #14215 110
 
 
-#DGE
+#Differential gene expression with E2A-PBX1 as case and other translocations as controls
 f.source=factor(PD_gse26366$mutation, levels = c("control", "case"))
 design_26366 <- model.matrix(~ 0+factor(f.source))
 colnames(design_26366) <-c("control", "case")
