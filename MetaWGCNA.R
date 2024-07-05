@@ -1,20 +1,28 @@
-setwd("C:/Users/agnih/OneDrive/Desktop/paper/Paper R scripts/Metafile and wgcna")
+setwd(" ") #or set session directory
+
+
+#Importing datasets saved after pre-processing
+MD_gse26281= readRDS("MD_gse26281.rds")
+MD_gse26366= readRDS("MD_gse26366.rds")
+MD_gse79533= readRDS("MD_gse79533.rds")
+
 
 
 ############# CREATING METAFILE #################
 
 
-#merging multiple dataframes through tidyverse 
+
+#merging multiple data frames
 datasetlist = list(MD_gse26281, MD_gse26366, MD_gse79533)
 Metafile <- datasetlist %>% reduce(inner_join, by='gene.symbol')
 dim(Metafile) #14215   391
 
-#making model matrix with batches of phenodata for batch correction
+#making model matrix with batches of pheno-data for batch correction
 Pmeta= import("Pmeta.xlsx")
 modphenoBC = model.matrix(~1, data=Pmeta)
 PhenoBatch = Pmeta$Dataset_ID
 
-#converting gene symbols to rownames and forming uniform matrix of metafile
+#converting gene symbols to row names and forming uniform matrix of metafile
 Metafile= column_to_rownames(Metafile, var="gene.symbol")
 Metafile.numeric = mutate_all(Metafile, as.numeric)
 
@@ -32,7 +40,7 @@ pca_after<-prcomp(t(MetaBC))
 autoplot(pca_after, data=Pmeta, colour= "Dataset_ID", main="After batch correction", scale. = TRUE)+ theme_bw()
 
 
-#DGE
+#Differential gene expression with E2A-PBX1 as case and other translocations as control
 f.source=factor(Pmeta$mutation, levels = c("control", "case"))
 design_metafile <- model.matrix(~ 0+factor(f.source))
 colnames(design_metafile) <-c("control", "case")
@@ -64,11 +72,12 @@ ggplot(data = DGE_metafile, aes(x = logFC, y = -log10(adj.P.Val), col = DE, labe
                      labels = c("Downregulated", "Not significant", "Upregulated")) +
   geom_text(check_overlap = TRUE, hjust=0.5,vjust=-1)
 
-saveRDS(MetaBC, file = "Metadata")
+saveRDS(MetaBC, file = "Metadata.rds")
 
 
 
 ########### DATA PRE-PROCESSING for WGCNA ################
+
 
 
 #The following setting is important, do not omit.
@@ -80,7 +89,7 @@ gsg = goodSamplesGenes(datExpr, verbose = 3)
 gsg$allOK #TRUE
 
 
-# binarize categorical variables for creating levels in phenodata
+# binarize categorical variables for creating levels in pheno-data
 f.source=factor(Pmeta$Types, levels = c("TEL-AML1", "E2A-PBX1", "MLL", "Hyperdiploid", "BCR-ABL"))
 pdatabi <- binarizeCategoricalColumns(f.source, includePairwise = FALSE,
                                       includeLevelVsAll = TRUE,
@@ -102,7 +111,7 @@ plot(sampleTree1, main = "Sample clustering to detect outliers", sub="", xlab=""
 # Plot a line to show the cut
 abline(h = 130, col = "red")
 
-# Determine cluster under the line and removing outliers
+# Determine cluster under the line to remove outliers
 clust = cutreeStatic(sampleTree1, cutHeight = 130, minSize = 10)
 table(clust) #samples we want to keep- 709 #removed 4 outliers
 keepSamples = (clust==1)
@@ -113,14 +122,14 @@ sampleTree2 = hclust(dist(datExpr), method = "average")
 plot(sampleTree2, main = "Sample clustering without outliers", sub="", xlab="", cex.lab = 1.5,
      cex.axis = 1.5, cex.main = 2)
 
-#removing outliers from phenodata
+#removing outliers from pheno-data
 outliers= c("GSM2097329", "GSM645439", "GSM647339", "GSM2097413", "GSM647305")
-datTraits=pdata %>% #from phenodata
+datTraits=pdata %>%
   column_to_rownames(var = "Sample_IDs")%>%
   filter(!row.names(.)%in% outliers)
 datTraits= datTraits[,-c(1:4)]
 
-#checking if samples and their order match in expession data and phenodata
+#checking if samples and their order match in expression data and pheno-data
 all(rownames(datTraits) %in% rownames(datExpr))
 all(rownames(datTraits) == rownames(datExpr))
 #should return true for both
@@ -138,6 +147,8 @@ plotDendroAndColors(sampleTree3, traitColors,
 
 
 ############### SIGNED NETWORK CONSTRUCTION #################
+
+
 
 # Choose a set of soft threshold parameters
 powers = c(c(1:10), seq(from = 12, to=20, by=2))
@@ -167,8 +178,10 @@ text(sft$fitIndices[,1], sft$fitIndices[,5], labels=powers, cex=cex1,col="red")
 
 
 
-######### MODULE CONSTRUCTION
+############# MODULE CONSTRUCTION & TRAIT RELATIONSHIPS ###############
 
+
+#Constructing signed network in single block using sft power 12 
 cor <- WGCNA::cor
 bwnet = blockwiseModules(datExpr, maxBlockSize = 15000,
                          power = 12, TOMType = "signed", minModuleSize = 30,
@@ -176,7 +189,6 @@ bwnet = blockwiseModules(datExpr, maxBlockSize = 15000,
                          numericLabels = FALSE,
                          saveTOMs = FALSE,
                          verbose = 3, networkType = "signed")
-cor <- temp_cor
 
 
 # get number of genes for each module and plot dendrogram
@@ -196,14 +208,11 @@ plotDendroAndColors(bwnet$dendrograms[[1]], cbind(bwnet$unmergedColors, bwnet$co
                     guideHang = 0.05)
 
 
-
-
-######### Relating modules with external traits
+## Relating modules with external traits
 
 moduleColors = bwnet$colors
 MEs = bwnet$MEs
-
-# Define numbers of genes and samples
+# Define number of genes and samples
 nGenes = ncol(datExpr)
 nSamples = nrow(datExpr)
 
@@ -214,13 +223,15 @@ moduleTraitCor = cor(MEs, datTraits, use = "p")
 moduleTraitPvalue = corPvalueStudent(moduleTraitCor, nSamples)
 
 
-sizeGrWindow(10,6)
 # Will display correlations and their p-values
 textMatrix = paste(signif(moduleTraitCor, 2), "\n(",
                    signif(moduleTraitPvalue, 1), ")", sep = "");
 dim(textMatrix) = dim(moduleTraitCor)
+
+
+## Display the correlation values within a heatmap plot
+sizeGrWindow(10,6)
 par(mar = c(6, 8.5, 3, 3))
-# Display the correlation values within a heatmap plot
 labeledHeatmap(Matrix = moduleTraitCor,
                xLabels = names(datTraits),
                yLabels = names(MEs),
@@ -249,8 +260,9 @@ filteredTextMatrix <- paste(signif(filteredModuleTraitCor, 2), "\n(",
 dim(filteredTextMatrix) = dim(filteredModuleTraitCor)
 filteredMEs <- names(MEs)[topNIndices]
 
-par(mar = c(4, 9, 3, 3))
+                
 # Display the correlation values within a heatmap plot
+par(mar = c(4, 9, 3, 3))
 labeledHeatmap(Matrix = filteredModuleTraitCor,
                xLabels = names(datTraits),
                yLabels = filteredMEs,
@@ -276,7 +288,7 @@ names(E2A_PBX1) = "E2A-PBX1"
 # names (colors) of the modules
 modNames = substring(names(MEs), 3)
 
-#calculating module membership and p-value by using pearson correlation between expression data and module eigengens
+#calculating module membership and p-value by using Pearson correlation between expression data and module eigengens
 geneModuleMembership = as.data.frame(cor(datExpr, MEs, use = "p"))
 MMPvalue = as.data.frame(corPvalueStudent(as.matrix(geneModuleMembership), nSamples))
 names(geneModuleMembership) = paste("MM", modNames, sep="")
@@ -320,7 +332,8 @@ darkgreen=names(datExpr)[moduleColors=="royalblue"]
 
 
 
-######### Ordering genes according to significance
+## Ordering genes according to significance
+
 
 # modulewise 
 Genesymbols= midnightblue
@@ -331,7 +344,8 @@ geneInfo = data.frame(geneSymbol = Genesymbols,
                        GSPvalue=abs(GSPvalue[moduleGenes, 1]))
 write.csv(geneInfo, file = "MidnightBlue genes.csv")
 
-Genesymbols= darkgreen
+                
+Genesymbols= royalblue
 module = "royalblue"
 geneInfo1 = data.frame(geneSymbol = Genesymbols,
                        moduleColor = module,
