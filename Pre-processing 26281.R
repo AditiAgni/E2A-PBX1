@@ -1,6 +1,6 @@
 setwd(" ")  #or session-choose directory
 
-#cel files download and unpacking
+#cel files listing
 gse26281<-list.celfiles(" ", pattern="CEL")
 
 
@@ -47,7 +47,8 @@ dim(PIDs_gse26281) #23652     2
 PIDs_gse26281.df=PIDs_gse26281[!(PIDs_gse26281$hgnc_symbol==""),]
 dim(PIDs_gse26281.df) #22287     2
 
-#bringing row names to column names
+
+#bringing row names to column
 ED_gse26281.df=rownames_to_column (ED_gse26281, "PIDs")
 colnames(PIDs_gse26281.df)[1]<-"PIDs"
 
@@ -71,7 +72,7 @@ FD_gse26281.matrix=as.matrix(FD_gse26281) #creating matrix file of final dataset
 class(FD_gse26281.matrix)= "numeric"
 
 
-#Creating common gene symbol column for merging data later
+#Creating a common gene symbol column for merging data later
 MD_gse26281 <- rownames_to_column (FD_gse26281, "gene.symbol")
 dim(FD_gse26281) #14215  62
 
@@ -91,5 +92,5 @@ DGE_gse26281<-topTable(fit2, coef=1, adjust="BH", confint=0.95)
 DGE2_gse26281<-topTable(fit2, n=Inf, adjust="BH", confint=0.95)
 
 
-#saving final final for meta-analysis
-saveRDS(MD_gse26281, file="MD_gse26281")
+#saving final data for meta-analysis
+saveRDS(MD_gse26281, file="MD_gse26281.rds")
