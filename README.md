@@ -20,6 +20,8 @@ GSE79533_updata: Updated phenodata for GSE79533 dataset.
 
 Pmeta: excel file for metafile phenodata. contain samples combined from GSE26281, GSE26366, GSE79533 in the respective order. Alongside Batch and Dataset ID information for batch correction.
 
+libraries: Common library of required packages for the complete analysis.
+
 Pre-processing 26281: R script for pre-processing of GSE26281 dataset. 
 
 Pre-processing 26366: R script for pre-processing of GSE26366 dataset.
