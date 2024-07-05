@@ -1,18 +1,18 @@
-#setwd("C:/Users/agnih/OneDrive/Desktop/paper/Paper R scripts/79533 files")
+setwd(" ")  #or session-choose directory
 
-#cel files download and unpacking
+
+#cel files listing
 gse79533<-list.celfiles("GSE79533/", pattern="CEL")
 
 
 #reading raw data
-RD_gse79533<-ReadAffy(verbose = TRUE, filenames = gse79533)
+RD_gse79533<-ReadAffy(verbose = TRUE, filenames = gse79533) #containing all samples (n=229)
 boxplot(RD_gse79533)
 
 
 #phenodata import and read
 file.exists("GSE79533_updata.xlsx")
-UPD_gse79533= import("GSE79533_updata.xlsx") #phenodata having only common samples
-#viewing phenodata = View(Phdata), for dimensions= dim(file name)
+UPD_gse79533= import("GSE79533_updata.xlsx") #phenodata having only common samples (n=229)
 
 
 #filtering samples from expression data; retaining only common samples
@@ -44,7 +44,7 @@ PIDs_gse79533.df=PIDs_gse79533[!(PIDs_gse79533$hgnc_symbol==""),] #removing unas
 dim(PIDs_gse79533.df)  #44539     2
 
 
-#bringing rownames to colnames
+#bringing row names to column
 ED_gse79533.df=rownames_to_column (ED_gse79533, "PIDs")
 colnames(PIDs_gse79533.df)[1]<-"PIDs"
 
@@ -57,7 +57,7 @@ dim(GS_gse79533) #44539   221
 #limma avereps- to avg out duplicate symbols
 AR_gse79533=as.data.frame((limma::avereps(GS_gse79533, GS_gse79533$hgnc_symbol)))
 dim(AR_gse79533) #22442   221
-AR_gse79533=column_to_rownames(AR_gse79533, "hgnc_symbol") #final dataset - having unique gene symbols as rownames
+AR_gse79533=column_to_rownames(AR_gse79533, "hgnc_symbol") #final dataset - having unique gene symbols as row names
 dim(AR_gse79533) #22442   220
 
 
@@ -69,13 +69,13 @@ class(FD_gse79533.matrix)= "numeric"
 dim(FD_gse79533.matrix) #22442   219
 
 
-#to create common gene symbol column for merging data
+#Creating a common gene symbol column for merging data
 MD_gse79533 <- rownames_to_column (FD_gse79533, "gene.symbol")
 dim(MD_gse79533) #22442   220
 
 
 
-#DGE
+#Differential gene expression with E2A-PBX1 as case and other translocations as control
 f.source=factor(PD_gse79533$mutation, levels = c("control", "case"))
 design_79533 <- model.matrix(~ 0+factor(f.source))
 colnames(design_79533) <-c("control", "case")
@@ -89,46 +89,6 @@ fit2 <- eBayes(fit2)
 DGE_gse79533<-topTable(fit2, coef=1, adjust="BH", confint=0.95)
 DGE2_gse79533<-topTable(fit2, n=Inf, adjust="BH", confint=0.95)
 
-#plotting DEGs
-volcanoplot(fit2)
 
-#adding differential expression column in table
-DGE2_gse79533$DE = "NO"
-DGE2_gse79533$DE[DGE2_gse79533$logFC>0.5 & DGE2_gse79533$adj.P.Val<0.05] = "UP"
-DGE2_gse79533$DE[DGE2_gse79533$logFC< -0.5 & DGE2_gse79533$adj.P.Val<0.05] = "DOWN"
-
-#adding top 10 DEG names in separate column in table
-DGE2_gse79533=rownames_to_column(DGE2_gse79533, var = "symbol")
-DGE2_gse79533$GeneSymbol <-ifelse(DGE2_gse79533$symbol %in% head(DGE2_gse79533[order(DGE2_gse79533$adj.P.Val), 
-                                                                               "symbol"], 10), DGE2_gse79533$symbol, NA)
-#ggplot for 30 top expressed genes
-ggplot(data = DGE2_gse79533, aes(x = logFC, y = -log10(P.Value), col = DE, label=GeneSymbol)) +
-  geom_point(size = 2) +
-  geom_hline(yintercept = -log10(0.05), col = "black", linetype = "dashed") +
-geom_vline(xintercept = c(-0.5, 0.5), col = "black", linetype = "dashed") +
-scale_color_manual(values = c("blue", "grey", "red"), 
-                     labels = c("Downregulated", "Not significant", "Upregulated")) +
-  geom_text_repel(max.overlaps = Inf) #for gene names
-
-
-#test
-#volcano plot of the DEgs
-#highlighting the top 25 DEGs
-volcanoplot(fit2,coef=1,highlight=25, names=rownames(FD_gse79533.matrix))
-dev.off()
-
-#factorising the samples and the condition columns
-sc2$Sample<- as.factor(PD_gse79533$Sample_IDs)
-sc2$condition<- as.factor(PD_gse79533$mutation)
-
-
-#plotting a heatmap with  a defined colour scheme
-heatmap3(data.matrix.genes2, labCol =paste( sc2$Sample, sc2$condition, sep = " - " ), col=colorRampPalette(c('navy','white','firebrick2'))(1024))
-
-heatmap3(FD_gse79533.matrix, labCol = paste(sc2$Sample, sc2$condition, sep = " - "))
-heatmap3(DGE_gse79533, Rowv = DGE2_gse79533$symbol)
-
-
-
-#saving final final for meta-analysis
-saveRDS(MD_gse79533, file="MD_gse79533")
+#saving final dataset for meta-analysis
+saveRDS(MD_gse79533, file="MD_gse79533.rds")
