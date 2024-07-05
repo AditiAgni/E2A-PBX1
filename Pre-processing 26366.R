@@ -5,7 +5,7 @@ gse26366<-list.celfiles(" ", pattern="CEL")
 
 
 #reading raw data
-RD_gse26366<-ReadAffy(verbose = TRUE, filenames = gse26366) #contain all samples (n=229)
+RD_gse26366<-ReadAffy(verbose = TRUE, filenames = gse26366) #contain all samples (n=206)
 boxplot(RD_gse26366)
 
 
@@ -88,5 +88,5 @@ DGE_gse26366<-topTable(fit2, coef=1, adjust="BH", confint=0.95)
 DGE2_gse26366<-topTable(fit2, n=Inf, adjust="BH", confint=0.95)
 
 
-#saving final final for meta-analysis
-saveRDS(MD_gse26366, file="MD_gse26366")
+#saving final data for meta-analysis
+saveRDS(MD_gse26366, file="MD_gse26366.rds")
