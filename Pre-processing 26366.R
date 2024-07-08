@@ -74,7 +74,7 @@ dim(MD_gse26366) #14215 110
 
 
 #Differential gene expression with E2A-PBX1 as case and other translocations as controls
-f.source=factor(PD_gse26366$mutation, levels = c("control", "case"))
+f.source=factor(UPD_gse26366$mutation, levels = c("control", "case"))
 design_26366 <- model.matrix(~ 0+factor(f.source))
 colnames(design_26366) <-c("control", "case")
 fit_26366=lmFit(FD_gse26366.matrix, design_26366)
