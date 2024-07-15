@@ -1,10 +1,19 @@
 setwd(" ") #or set session directory
 
+library(tidyverse)
+library(dbplyr)
+library(WGCNA)
+library(rio)
+library(sva)
+library(ggplot2)
+library(ggfortify)
+library(limma)
+
 
 #Importing datasets saved after pre-processing
-MD_gse26281= readRDS("MD_gse26281.rds")
-MD_gse26366= readRDS("MD_gse26366.rds")
-MD_gse79533= readRDS("MD_gse79533.rds")
+GSE26281= readRDS("MD_gse26281.rds")
+GSE26366= readRDS("MD_gse26366.rds")
+GSE79533= readRDS("MD_gse79533.rds")
 
 
 
@@ -13,7 +22,7 @@ MD_gse79533= readRDS("MD_gse79533.rds")
 
 
 #merging multiple data frames
-datasetlist = list(MD_gse26281, MD_gse26366, MD_gse79533)
+datasetlist = list(GSE26281, GSE26366, GSE79533)
 Metafile <- datasetlist %>% reduce(inner_join, by='gene.symbol')
 dim(Metafile) #14215   391
 
@@ -123,7 +132,7 @@ plot(sampleTree2, main = "Sample clustering without outliers", sub="", xlab="", 
      cex.axis = 1.5, cex.main = 2)
 
 #removing outliers from pheno-data
-outliers= c("GSM2097329", "GSM645439", "GSM647339", "GSM2097413", "GSM647305")
+outliers= c("GSM2097329", "GSM645439", "GSM647339", "GSM2097413", "GSM647305", "GSM645388")
 datTraits=pdata %>%
   column_to_rownames(var = "Sample_IDs")%>%
   filter(!row.names(.)%in% outliers)
@@ -315,26 +324,9 @@ verboseScatterplot(abs(geneModuleMembership[moduleGenes, column]),
                    cex.main = 1.2, cex.lab = 1.2, cex.axis = 1.2, 
                    col = module, abline = TRUE)
 midnightblue=names(datExpr)[moduleColors=="midnightblue"]
-
-
-#negatively correlated   
-module = "royalblue"
-column = match(module, modNames)
-moduleGenes = moduleColors==module
-par(mfrow = c(1,1));
-verboseScatterplot(abs(geneModuleMembership[moduleGenes, column]),
-                   abs(geneTraitSignificance[moduleGenes, 1]),
-                   xlab = paste("Module Membership in", module, "module"),
-                   ylab = "Gene significance for E2A-PBX1",
-                   main = paste("Module membership vs. gene significance\n"),
-                   cex.main = 1.2, cex.lab = 1.2, cex.axis = 1.2, col = module)
-darkgreen=names(datExpr)[moduleColors=="royalblue"]
-
-
+                
 
 ## Ordering genes according to significance
-
-
 # modulewise 
 Genesymbols= midnightblue
 module = "midnightblue"
@@ -343,15 +335,6 @@ geneInfo = data.frame(geneSymbol = Genesymbols,
                        geneTraitSignificance=abs(geneTraitSignificance[moduleGenes, 1]),
                        GSPvalue=abs(GSPvalue[moduleGenes, 1]))
 write.csv(geneInfo, file = "MidnightBlue genes.csv")
-
-                
-Genesymbols= royalblue
-module = "royalblue"
-geneInfo1 = data.frame(geneSymbol = Genesymbols,
-                       moduleColor = module,
-                       geneTraitSignificance=abs(geneTraitSignificance[moduleGenes, 1]),
-                       GSPvalue=abs(GSPvalue[moduleGenes, 1]))
-
 
 
 # order overall
