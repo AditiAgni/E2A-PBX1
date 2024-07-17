@@ -118,10 +118,10 @@ plot(sampleTree1, main = "Sample clustering to detect outliers", sub="", xlab=""
      cex.axis = 1.5, cex.main = 2)
 
 # Plot a line to show the cut
-abline(h = 130, col = "red")
+abline(h = 120, col = "red")
 
 # Determine cluster under the line to remove outliers
-clust = cutreeStatic(sampleTree1, cutHeight = 130, minSize = 10)
+clust = cutreeStatic(sampleTree1, cutHeight = 120, minSize = 10)
 table(clust) #samples we want to keep- 709 #removed 4 outliers
 keepSamples = (clust==1)
 datExpr = datExpr[keepSamples, ]
@@ -254,38 +254,6 @@ labeledHeatmap(Matrix = moduleTraitCor,
                main = paste("Module-trait relationships"))
 
 
-## Filtering top 10 modules
-
-# Determine the maximum absolute correlation for each module
-maxCor <- apply(moduleTraitCor, 1, function(x) max(abs(x)))
-
-# Select the top 10 modules
-topNIndices <- order(maxCor, decreasing = TRUE)[1:10]
-
-# Filter the correlation matrix and text matrix
-filteredModuleTraitCor <- moduleTraitCor[topNIndices, ]
-filteredTextMatrix <- paste(signif(filteredModuleTraitCor, 2), "\n(", 
-                            signif(moduleTraitPvalue[topNIndices, ], 1), ")", sep = "")
-dim(filteredTextMatrix) = dim(filteredModuleTraitCor)
-filteredMEs <- names(MEs)[topNIndices]
-
-                
-# Display the correlation values within a heatmap plot
-par(mar = c(4, 9, 3, 3))
-labeledHeatmap(Matrix = filteredModuleTraitCor,
-               xLabels = names(datTraits),
-               yLabels = filteredMEs,
-               ySymbols = filteredMEs,
-               colorLabels = FALSE,
-               colors = greenWhiteRed(50),
-               textMatrix = filteredTextMatrix,
-               setStdMargins = FALSE,
-               cex.text = 0.55,
-               cex.lab = 0.8,
-               zlim = c(-1,1),
-               main = paste("Top 10 Module-trait relationships"))
-
-
 
 ################## Intra-modular analysis ###################
 
@@ -337,30 +305,7 @@ geneInfo = data.frame(geneSymbol = Genesymbols,
 write.csv(geneInfo, file = "MidnightBlue genes.csv")
 
 
-# order overall
-Genesymbols= rownames(datExpr0)
-geneInfo0 = data.frame(geneSymbol = Genesymbols,
-                       moduleColor = moduleColors,
-                       geneTraitSignificance,
-                       GSPvalue)
-# Order modules by their significance for E2A-PBX1
-modOrder = order(-abs(cor(MEs, E2A_PBX1, use = "p")))
-# Add module membership information in the chosen order
-for (mod in 1:ncol(geneModuleMembership))
-{
-  oldNames = names(geneInfo0)
-  geneInfo0 = data.frame(geneInfo0, geneModuleMembership[, modOrder[mod]],
-                         MMPvalue[, modOrder[mod]]);
-  names(geneInfo0) = c(oldNames, paste("MM.", modNames[modOrder[mod]], sep=""),
-                       paste("p.MM.", modNames[modOrder[mod]], sep=""))
-}
-# Order the genes in the geneInfo variable first by module color, then by geneTraitSignificance
-geneOrder = order(geneInfo0$moduleColor, -abs(geneInfo0$GS.E2A.PBX1));
-geneInfo = geneInfo0[geneOrder, ]
-
-
-
-## Module Eigengenes
+## Module Eigengenes for QC
 
 # Add the weight to existing module eigengenes
 MET = orderMEs(cbind(MEs, E2A_PBX1))
