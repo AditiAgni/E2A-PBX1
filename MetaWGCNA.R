@@ -89,17 +89,21 @@ saveRDS(MetaBC, file = "Metadata.rds")
 
 
 
-#The following setting is important, do not omit.
+# The following setting is important, do not omit.
 options(stringsAsFactors = FALSE)
 datExpr= as.data.frame(t(MetaBC))
 
-#removing genes with missing values
+# removing genes with missing values
 gsg = goodSamplesGenes(datExpr, verbose = 3)
 gsg$allOK #TRUE
 
+# Updating fusion gene names
+Pmeta$Types=gsub("E2A-PBX1", "TCF3::PBX1", Pmeta$Types)
+Pmeta$Types=gsub("BCR-ABL1", "BCR::ABL1", Pmeta$Types)
+Pmeta$Types=gsub("TEL-AML1", "TEL::AML1", Pmeta$Types)
 
 # binarize categorical variables for creating levels in pheno-data
-f.source=factor(Pmeta$Types, levels = c("TEL-AML1", "E2A-PBX1", "MLL", "Hyperdiploid", "BCR-ABL"))
+f.source=factor(Pmeta$Types, levels = c("TEL::AML1", "TCF3::PBX1", "MLL", "Hyperdiploid", "BCR::ABL1"))
 pdatabi <- binarizeCategoricalColumns(f.source, includePairwise = FALSE,
                                       includeLevelVsAll = TRUE,
                                       dropFirstLevelVsAll = FALSE,
@@ -131,14 +135,14 @@ sampleTree2 = hclust(dist(datExpr), method = "average")
 plot(sampleTree2, main = "Sample clustering without outliers", sub="", xlab="", cex.lab = 1.5,
      cex.axis = 1.5, cex.main = 2)
 
-#removing outliers from pheno-data
+# removing outliers from pheno-data
 outliers= c("GSM2097329", "GSM645439", "GSM647339", "GSM2097413", "GSM647305", "GSM645388")
 datTraits=pdata %>%
   column_to_rownames(var = "Sample_IDs")%>%
   filter(!row.names(.)%in% outliers)
 datTraits= datTraits[,-c(1:4)]
 
-#checking if samples and their order match in expression data and pheno-data
+# checking if samples and their order match in expression data and pheno-data
 all(rownames(datTraits) %in% rownames(datExpr))
 all(rownames(datTraits) == rownames(datExpr))
 #should return true for both
@@ -190,7 +194,7 @@ text(sft$fitIndices[,1], sft$fitIndices[,5], labels=powers, cex=cex1,col="red")
 ############# MODULE CONSTRUCTION & TRAIT RELATIONSHIPS ###############
 
 
-#Constructing signed network in single block using sft power 12 
+# Constructing signed network in single block using sft power 12 
 cor <- WGCNA::cor
 bwnet = blockwiseModules(datExpr, maxBlockSize = 15000,
                          power = 12, TOMType = "signed", minModuleSize = 30,
@@ -259,27 +263,27 @@ labeledHeatmap(Matrix = moduleTraitCor,
 
 
 
-# Define variable weight containing the E2A-PBX1 column of datTrait
-E2A_PBX1 = as.data.frame(datTraits$`E2A-PBX1`)
-names(E2A_PBX1) = "E2A-PBX1"
+# Define variable weight containing the TCF3::PBX1 column of datTrait
+TCF3_PBX1 = as.data.frame(datTraits$`TCF3::PBX1`)
+names(TCF3_PBX1) = "TCF3::PBX1"
 # names (colors) of the modules
 modNames = substring(names(MEs), 3)
 
-#calculating module membership and p-value by using Pearson correlation between expression data and module eigengens
+# calculating module membership and p-value by using Pearson correlation between expression data and module eigengens
 geneModuleMembership = as.data.frame(cor(datExpr, MEs, use = "p"))
 MMPvalue = as.data.frame(corPvalueStudent(as.matrix(geneModuleMembership), nSamples))
 names(geneModuleMembership) = paste("MM", modNames, sep="")
 names(MMPvalue) = paste("p.MM", modNames, sep="")
 
 # calculating gene significance and p-value
-geneTraitSignificance = as.data.frame(cor(datExpr, E2A_PBX1, use = "p")) #pearson method
+geneTraitSignificance = as.data.frame(cor(datExpr, TCF3_PBX1, use = "p")) #pearson method
 GSPvalue = as.data.frame(corPvalueStudent(as.matrix(geneTraitSignificance), nSamples))
-names(geneTraitSignificance) = paste("GS.", names(E2A_PBX1), sep="")
-names(GSPvalue) = paste("p.GS.", names(E2A_PBX1), sep="")
+names(geneTraitSignificance) = paste("GS.", names(TCF3_PBX1), sep="")
+names(GSPvalue) = paste("p.GS.", names(TCF3_PBX1), sep="")
 
 
-# analysing module associated with E2A-PBX1
-#positively correlated
+# analysing module associated with TCF3::PBX1
+# positively correlated
 module = "midnightblue"
 column = match(module, modNames)
 moduleGenes = moduleColors==module
@@ -287,7 +291,7 @@ par(mfrow = c(1,1));
 verboseScatterplot(abs(geneModuleMembership[moduleGenes, column]),
                    abs(geneTraitSignificance[moduleGenes, 1]),
                    xlab = paste("Module Membership in", module, "module"),
-                   ylab = "Gene significance for E2A-PBX1",
+                   ylab = "Gene significance for TCF3::PBX1",
                    main = paste("Module membership vs. gene significance\n"),
                    cex.main = 1.2, cex.lab = 1.2, cex.axis = 1.2, 
                    col = module, abline = TRUE)
@@ -308,7 +312,7 @@ write.csv(geneInfo, file = "MidnightBlue genes.csv")
 ## Module Eigengenes for QC
 
 # Add the weight to existing module eigengenes
-MET = orderMEs(cbind(MEs, E2A_PBX1))
+MET = orderMEs(cbind(MEs, TCF3_PBX1))
 
 # Plot the dendrogram
 sizeGrWindow(15,10)
